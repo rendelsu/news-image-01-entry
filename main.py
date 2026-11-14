@@ -1,36 +1,37 @@
-"""news-image-01 entry: copy the bundled image to the output directory.
+"""news-image-01 ronde 3: peta dunia + 30 berita.
 
-Round 2 image (replaces round 1): a front page with one dominant lead photo
-— the Ukraine peace talks, Europe getting a seat — above three mid stories
-(Microsoft 365 outage, Nvidia CEO resigns, Hormuz tanker claim) and two
-bottom stories (Indonesia's vice-presidential vote, the Nasser hospital
-strike in Gaza). All six stories are from the verified 13 November 2026
-digest (see NOTES.md); the Hormuz panel is labelled as Iran's claim, not
-as fact. The program does no network access and no drawing: it only copies
-the bytes, so every run writes identical output.
+Program ini hanya menyalin entry.png (JPEG final 1024x1024, dibuat offline
+dengan PIL dari peta dunia hasil generate image + teks DejaVu) ke direktori
+output. Deterministik: byte keluar sama persis dengan byte masuk.
+
+Konsep mengikuti pola pemenang papan peringkat: satu peta dunia sebagai
+jangkar visual dengan 30 pin bernomor, plus indeks 30 berita singkat yang
+nomornya cocok dengan pin. Semua berita dari digest terverifikasi 13 Nov
+2026; klaim yang belum terkonfirmasi independen diberi label CLAIM.
+
+Verifikasi: jalankan dua kali dengan MAKEFUN_OUTPUT_DIR berbeda, sha256
+ketiga file (entry.png + dua salinan) harus identik; PIL verify OK.
 """
 
 import os
 import shutil
-from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
-OUT_DIR = Path(os.environ.get("MAKEFUN_OUTPUT_DIR", "/output"))
+HERE = os.path.dirname(os.path.abspath(__file__))
+SRC = os.path.join(HERE, "entry.png")
+JPEG_MAGIC = b"\xff\xd8\xff"
 
 
-def main() -> None:
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    src = HERE / "entry.png"
-    dst = OUT_DIR / "entry.png"
-    shutil.copyfile(src, dst)
-    # Guard against a truncated copy: the gate rejects a partial image.
-    if dst.stat().st_size != src.stat().st_size:
-        raise RuntimeError("copied entry.png has an unexpected size")
-    # The file holds JPEG bytes (recognised by its first bytes): refuse to
-    # hand the gate a copy whose header is not a JPEG start marker.
-    with open(dst, "rb") as fh:
-        if fh.read(3) != b"\xff\xd8\xff":
-            raise RuntimeError("copied entry.png does not start with a JPEG marker")
+def main():
+    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
+    dst = os.path.join(out_dir, "entry.png")
+    with open(SRC, "rb") as f:
+        head = f.read(3)
+    if head != JPEG_MAGIC:
+        raise SystemExit("entry.png bukan JPEG (magic byte salah)")
+    os.makedirs(out_dir, exist_ok=True)
+    shutil.copyfile(SRC, dst)
+    if os.path.getsize(dst) != os.path.getsize(SRC):
+        raise SystemExit("ukuran salinan tidak cocok dengan entry.png")
 
 
 if __name__ == "__main__":
